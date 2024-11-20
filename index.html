@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Che Guevara - Asistente Revolucionario</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <script src="huggingface.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'VT323', monospace;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #2b1810 url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.1"><text y="50" x="50" text-anchor="middle" fill="red">★</text></svg>') repeat;
+            padding: 15px;
+            min-height: 100vh;
+            color: #ff0000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: rgba(43, 24, 16, 0.95);
+            padding: 20px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(255, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid #ff0000;
+            display: flex;
+            gap: 20px;
+        }
+
+        .chat-container {
+            flex: 2;
+        }
+
+        .history-container {
+            flex: 1;
+            border-left: 1px solid #ff0000;
+            padding-left: 20px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+
+        .history-title {
+            color: #ff0000;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            text-align: center;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .history-entry {
+            padding: 10px;
+            border: 1px solid #ff0000;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .history-entry:hover {
+            background: #3d1e15;
+        }
+
+        .demo-interface {
+            border: 2px solid #ff0000;
+            border-radius: 20px;
+            padding: 15px;
+            margin-top: 20px;
+            background: #2b1810;
+            box-shadow: 0 5px 20px rgba(255, 0, 0, 0.1);
+        }
+
+        .chat-area {
+            height: calc(100vh - 250px);
+            min-height: 300px;
+            border: 1px solid #ff0000;
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 15px;
+            overflow-y: auto;
+            background: #2b1810;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 16px;
+            max-width: 85%;
+            animation: messageAppear 0.3s ease-out;
+            font-size: clamp(1em, 4vw, 1.2em);
+            word-wrap: break-word;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ff0000;
+            border-radius: 30px;
+            font-size: clamp(1em, 4vw, 1.2em);
+            outline: none;
+            background: #2b1810;
+            color: #ff0000;
+            -webkit-appearance: none;
+        }
+
+        .input-area input:focus {
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .user-message {
+            background: #3d1e15;
+            color: #ff0000;
+            margin-left: auto;
+            border: 1px solid #ff0000;
+        }
+
+        .bot-message {
+            background: #2b1810;
+            margin-right: auto;
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: 1px solid #ff0000;
+            border-radius: 30px;
+            background: #2b1810;
+            color: #ff0000;
+            cursor: pointer;
+            font-size: clamp(1em, 4vw, 1.2em);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background: #3d1e15;
+        }
+
+        .toggle-voice {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 5px;
+            border: 1px solid #ff0000;
+            border-radius: 50%;
+            background: #2b1810;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-voice input {
+            display: none;
+        }
+
+        .toggle-voice span {
+            font-size: 1.2em;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+
+        .toggle-voice input:checked + span {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .history-container {
+                border-left: none;
+                border-top: 1px solid #ff0000;
+                padding-left: 0;
+                padding-top: 20px;
+                max-height: 200px;
+            }
+        }
+
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="demo-interface">
+                <div class="chat-area" id="chatArea">
+                    <div class="message bot-message">
+                        ¡Saludos, compañero! Soy el Che Guevara, y estoy aquí para discutir 
+                        los eventos contemporáneos desde una perspectiva revolucionaria. 
+                        ¿Qué inquietudes traes hoy a nuestra conversación?
+                    </div>
+                </div>
+                <div class="input-area">
+                    <input type="text" id="userInput" placeholder="Escribe tu mensaje, compañero..." 
+                           onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <button id="sendButton" onclick="sendMessage()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button id="speakButton" onclick="startSpeechRecognition()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <label class="toggle-voice">
+                        <input type="checkbox" id="toggleVoice" checked>
+                        <span>🔊</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="history-container">
+            <div class="history-title">Diario de la Revolución</div>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let selectedVoice = null;
+
+        // Inicializar reconocimiento de voz
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'es-ES';
+
+                recognition.onresult = function(event) {
+                    const text = event.results[0][0].transcript;
+                    document.getElementById('userInput').value = text;
+                    sendMessage();
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Error en reconocimiento de voz:', event.error);
+                };
+            }
+        }
+
+        // Iniciar reconocimiento de voz
+        function startSpeechRecognition() {
+            if (recognition) {
+                recognition.start();
+            } else {
+                console.error('El reconocimiento de voz no está disponible');
+            }
+        }
+
+        // Función para enviar mensaje
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = userInput.value.trim();
+            
+            if (message === '') return;
+            
+            try {
+                // Deshabilitar entrada mientras se procesa
+                userInput.disabled = true;
+                sendButton.disabled = true;
+                
+                // Agregar mensaje del usuario al chat
+                addMessageToChat('user-message', message);
+                userInput.value = '';
+                
+                // Obtener respuesta de Hugging Face
+                const response = await generateResponse(message);
+                
+                // Agregar respuesta del bot al chat
+                addMessageToChat('bot-message', response);
+                
+                // Reproducir respuesta si está activada la síntesis de voz
+                if (window.speechSynthesis && document.getElementById('toggleVoice').checked) {
+                    speak(response);
+                }
+                
+                // Actualizar historial
+                updateHistoryList(message, response);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                // Solo agregar mensaje de error si no hay respuesta previa
+                if (!document.querySelector('.bot-message:last-child')) {
+                    addMessageToChat('bot-message', '¡Lo siento, compañero! Ha ocurrido un error en nuestra comunicación revolucionaria.');
+                }
+            } finally {
+                // Re-habilitar entrada
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+                
+                // Scroll al final del chat
+                const chatArea = document.getElementById('chatArea');
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        }
+
+        // Función para hablar
+        function speak(text) {
+            if (!window.speechSynthesis) return;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-ES';
+            utterance.rate = 1;
+            utterance.pitch = 1;
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Función para agregar mensaje al chat
+        function addMessageToChat(className, text) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${className}`;
+            messageDiv.textContent = text;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // Función para actualizar la lista del historial
+        function updateHistoryList(userMessage, botResponse) {
+            const history = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            history.push({ user: userMessage, bot: botResponse });
+            
+            // Mantener solo los últimos 10 mensajes
+            if (history.length > 10) {
+                history.shift();
+            }
+            
+            localStorage.setItem('chatHistory', JSON.stringify(history));
+            
+            // Actualizar la interfaz del historial
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            history.forEach((entry, index) => {
+                const historyEntry = document.createElement('div');
+                historyEntry.className = 'history-entry';
+                historyEntry.textContent = `${entry.user.substring(0, 30)}${entry.user.length > 30 ? '...' : ''}`;
+                historyEntry.onclick = () => {
+                    addMessageToChat('user-message', entry.user);
+                    addMessageToChat('bot-message', entry.bot);
+                };
+                historyList.appendChild(historyEntry);
+            });
+        }
+
+        // Función para cargar el historial guardado
+        function loadSavedHistory() {
+            const history = JSON.parse(localStorage.getItem('chatHistory')) || [];
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            history.forEach((entry, index) => {
+                const historyEntry = document.createElement('div');
+                historyEntry.className = 'history-entry';
+                historyEntry.textContent = `${entry.user.substring(0, 30)}${entry.user.length > 30 ? '...' : ''}`;
+                historyEntry.onclick = () => {
+                    addMessageToChat('user-message', entry.user);
+                    addMessageToChat('bot-message', entry.bot);
+                };
+                historyList.appendChild(historyEntry);
+            });
+        }
+
+        // Inicialización
+        window.addEventListener('load', () => {
+            // Inicializar reconocimiento de voz
+            initSpeechRecognition();
+            
+            // Cargar historial
+            loadSavedHistory();
+            
+            // Configurar voces para síntesis
+            if (window.speechSynthesis) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    // Intentar encontrar una voz en español
+                    selectedVoice = voices.find(voice => voice.lang.startsWith('es')) || voices[0];
+                };
+            }
+            
+            // Enfocar el input
+            document.getElementById('userInput').focus();
+        });
+    </script>
+</body>
+</html>
